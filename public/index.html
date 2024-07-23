@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Panoramic Image Stitching</title>
+  <style>
+    body {
+      font-family: 'Roboto', sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      background: linear-gradient(135deg, #f5f7fa 25%, #c3cfe2 100%);
+      overflow: hidden;
+    }
+
+    h1 {
+      font-size: 2.5em;
+      margin-bottom: 10px;
+      color: #333;
+    }
+
+    h2 {
+      font-size: 1.5em;
+      margin-top: 30px;
+      color: #666;
+    }
+
+    form {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 20px 0;
+    }
+
+    input[type="file"] {
+      margin-right: 10px;
+    }
+
+    button {
+      padding: 10px 20px;
+      font-size: 1em;
+      color: #fff;
+      background-color: #3498db;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+
+    button:hover {
+      background-color: #2980b9;
+    }
+
+    table {
+      width: 80%;
+      margin-top: 20px;
+      border-collapse: collapse;
+    }
+
+    table, th, td {
+      border: 1px solid #ddd;
+    }
+
+    th, td {
+      padding: 12px;
+      text-align: center;
+    }
+
+    th {
+      background-color: #3498db;
+      color: #fff;
+    }
+
+    tr:nth-child(even) {
+      background-color: #f2f2f2;
+    }
+
+    tr:hover {
+      background-color: #ddd;
+    }
+
+    img {
+      max-width: 150px;
+      height: auto;
+      display: block;
+      margin: 0 auto;
+    }
+
+    button.download {
+      background-color: #2ecc71;
+    }
+
+    button.download:hover {
+      background-color: #27ae60;
+    }
+
+    button.delete {
+      background-color: #e74c3c;
+    }
+
+    button.delete:hover {
+      background-color: #c0392b;
+    }
+
+    button.generate {
+      padding: 15px 30px;
+      font-size: 1.2em;
+      color: #fff;
+      background-color: #8e44ad;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+      margin-top: 20px;
+    }
+
+    button.generate:hover {
+      background-color: #732d91;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    @keyframes floating {
+      0% {
+        transform: translateY(0);
+      }
+      50% {
+        transform: translateY(-20px);
+      }
+      100% {
+        transform: translateY(0);
+      }
+    }
+
+    .floating-bg {
+      position: absolute;
+      top: -100px;
+      right: -100px;
+      width: 300px;
+      height: 300px;
+      background-color: rgba(255, 255, 255, 0.2);
+      border-radius: 50%;
+      animation: floating 6s ease-in-out infinite;
+    }
+
+    .floating-bg:nth-child(2) {
+      top: auto;
+      bottom: -100px;
+      left: -100px;
+      animation-duration: 8s;
+    }
+  </style>
+</head>
+<body>
+  <div class="floating-bg"></div>
+  <div class="floating-bg"></div>
+  <h1>Panoramic Image Stitching</h1>
+  <form id="uploadForm">
+    <input type="file" name="image" required>
+    <button type="submit">Upload</button>
+  </form>
+  <h2>Uploaded Images</h2>
+  <table id="imageTable">
+    <thead>
+      <tr>
+        <th>Image</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody id="imageList">
+      <!-- Images will be loaded here -->
+    </tbody>
+  </table>
+  <button id="generateButton" class="generate hidden">Generate</button>
+
+  <script>
+    document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const formData = new FormData(e.target);
+      try {
+        const response = await fetch('/upload', {
+          method: 'POST',
+          body: formData
+        });
+        const result = await response.json();
+        if (response.ok) {
+          alert(result.message);
+          loadImages();
+        } else {
+          alert('Error: ' + result.error);
+        }
+      } catch (error) {
+        alert('Error: ' + error.message);
+      }
+    });
+
+    async function loadImages() {
+      try {
+        const response = await fetch('/images');
+        const images = await response.json();
+        const imageList = document.getElementById('imageList');
+        imageList.innerHTML = '';
+        images.forEach(image => {
+          const row = document.createElement('tr');
+          row.innerHTML = `
+            <td><img src="${image.url}" alt="${image.name}"></td>
+            <td>
+              <button class="download" onclick="downloadImage('${image.name}')">Download</button>
+              <button class="delete" onclick="deleteImage('${image.name}')">Delete</button>
+            </td>
+          `;
+          imageList.appendChild(row);
+        });
+
+        const generateButton = document.getElementById('generateButton');
+        if (images.length > 1) {
+          generateButton.classList.remove('hidden');
+        } else {
+          generateButton.classList.add('hidden');
+        }
+      } catch (error) {
+        alert('Error loading images: ' + error.message);
+      }
+    }
+
+    async function downloadImage(filename) {
+      try {
+        const link = document.createElement('a');
+        link.href = `/download/${filename}`;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } catch (error) {
+        alert('Error downloading image: ' + error.message);
+      }
+    }
+
+    async function deleteImage(filename) {
+      if (confirm('Are you sure you want to delete this image?')) {
+        try {
+          const response = await fetch(`/delete/${filename}`, {
+            method: 'DELETE'
+          });
+          const result = await response.json();
+          if (response.ok) {
+            alert(result.message);
+            loadImages();
+          } else {
+            alert('Error: ' + result.error);
+          }
+        } catch (error) {
+          alert('Error: ' + error.message);
+        }
+      }
+    }
+
+    document.getElementById('generateButton').addEventListener('click', async () => {
+      try {
+        const response = await fetch('/generate-panorama', { method: 'POST' });
+        const result = await response.json();
+        if (response.ok) {
+          const link = document.createElement('a');
+          link.href = result.panoramaUrl;
+          link.download = 'panorama.jpg';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          alert(result.message);
+        } else {
+          alert('Error: ' + result.error);
+        }
+      } catch (error) {
+        alert('Error: ' + error.message);
+      }
+    });
+
+    // Load images when the page loads
+    loadImages();
+  </script>
+</body>
+</html>
