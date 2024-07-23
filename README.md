@@ -1,0 +1,1 @@
+# paronama_stitching_project
